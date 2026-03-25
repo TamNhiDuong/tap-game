@@ -76,6 +76,8 @@ class TapGame extends FlameGame {
 
   TapGame() {
     add(TapBox());
+    add(TapCircle());
+    add(TapPolygon());
   }
 
   incrementScore() {
@@ -94,5 +96,31 @@ class TapBox extends RectangleComponent with HasGameRef<TapGame>, TapCallbacks {
   void onTapDown(TapDownEvent event) {
     gameRef.incrementScore();
     position.x = position.x + 10;
+  }
+}
+
+class TapCircle extends CircleComponent with HasGameRef<TapGame>, TapCallbacks {
+  TapCircle() : super(position: Vector2(100, 400), radius: 50);
+
+  @override
+  void onTapDown(TapDownEvent event) {
+    gameRef.incrementScore();
+    position.x = position.x + 10;
+  }
+}
+
+class TapPolygon extends PolygonComponent
+    with TapCallbacks, HasGameRef<TapGame> {
+  TapPolygon()
+    : super(
+        [Vector2(0, 0), Vector2(100, 0), Vector2(50, 100)],
+        position: Vector2(100, 200),
+        paint: Paint()..color = Colors.orange,
+      );
+
+  @override
+  void onTapDown(TapDownEvent event) {
+    gameRef.incrementScore();
+    position.x += 10;
   }
 }
