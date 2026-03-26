@@ -3,6 +3,7 @@ import 'package:flame/events.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'dart:math';
 
 void main() {
   runApp(GameApp());
@@ -72,7 +73,12 @@ class ResultScreen extends StatelessWidget {
 }
 
 class TapGame extends FlameGame {
+  final gravity = Vector2(0, 100);
+
+  var gameFinished = false;
+  var timeLeft = 30.0;
   var score = 0;
+  var tapNumber = 0;
 
   TapGame() {
     add(TapBox());
@@ -80,37 +86,114 @@ class TapGame extends FlameGame {
     add(TapPolygon());
   }
 
-  incrementScore() {
-    score++;
+  @override
+  void update(double dt) {
+    super.update(dt);
+    timeLeft -= dt;
 
-    if (score >= 10) {
+    if (timeLeft <= 0 && !gameFinished) {
+      gameFinished = true;
       Get.offAll(() => ResultScreen(score: score));
     }
+  }
+
+  incrementScore() {
+    score++;
+    tapNumber++;
   }
 }
 
 class TapBox extends RectangleComponent with HasGameRef<TapGame>, TapCallbacks {
-  TapBox() : super(position: Vector2(100, 300), size: Vector2(50, 50));
+  final random = Random();
+  var timeSinceLastMove = 0.0;
+  var velocity = Vector2(0, 0);
+
+  TapBox()
+    : super(
+        position: Vector2(100, 300),
+        size: Vector2(50, 50),
+        anchor: Anchor.center,
+      );
 
   @override
   void onTapDown(TapDownEvent event) {
     gameRef.incrementScore();
-    position.x = position.x + 10;
+    changeLocation();
+  }
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    transform.angle += dt;
+
+    velocity += gameRef.gravity * dt;
+    position += velocity * dt;
+
+    timeSinceLastMove += dt;
+    if (timeSinceLastMove > 1.0) {
+      changeLocation();
+    }
+
+    if (position.y > gameRef.size.y - size.y) {
+      position.y = gameRef.size.y - size.y;
+      velocity = Vector2(0, 0);
+    }
+  }
+
+  void changeLocation() {
+    position.x = random.nextDouble() * (gameRef.size.x - size.x);
+    position.y = random.nextDouble() * (gameRef.size.y - size.y);
+
+    timeSinceLastMove = 0.0;
   }
 }
 
 class TapCircle extends CircleComponent with HasGameRef<TapGame>, TapCallbacks {
+  final random = Random();
+  var timeSinceLastMove = 0.0;
+  var velocity = Vector2(0, 0);
+
   TapCircle() : super(position: Vector2(100, 400), radius: 50);
 
   @override
   void onTapDown(TapDownEvent event) {
     gameRef.incrementScore();
-    position.x = position.x + 10;
+    changeLocation();
+  }
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    transform.angle += dt;
+
+    velocity += gameRef.gravity * dt;
+    position += velocity * dt;
+
+    timeSinceLastMove += dt;
+    if (timeSinceLastMove > 1.0) {
+      changeLocation();
+    }
+
+    if (position.y > gameRef.size.y - size.y) {
+      position.y = gameRef.size.y - size.y;
+      velocity = Vector2(0, 0);
+    }
+  }
+
+  void changeLocation() {
+    position.x = random.nextDouble() * (gameRef.size.x - size.x);
+    position.y = random.nextDouble() * (gameRef.size.y - size.y);
+
+    timeSinceLastMove = 0.0;
   }
 }
 
 class TapPolygon extends PolygonComponent
     with TapCallbacks, HasGameRef<TapGame> {
+  final random = Random();
+  var timeSinceLastMove = 0.0;
+  var velocity = Vector2(0, 0);
+
   TapPolygon()
     : super(
         [Vector2(0, 0), Vector2(100, 0), Vector2(50, 100)],
@@ -121,6 +204,32 @@ class TapPolygon extends PolygonComponent
   @override
   void onTapDown(TapDownEvent event) {
     gameRef.incrementScore();
-    position.x += 10;
+    changeLocation();
+  }
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    transform.angle += dt;
+
+    velocity += gameRef.gravity * dt;
+    position += velocity * dt;
+
+    timeSinceLastMove += dt;
+    if (timeSinceLastMove > 1.0) {
+      changeLocation();
+    }
+
+    if (position.y > gameRef.size.y - size.y) {
+      position.y = gameRef.size.y - size.y;
+      velocity = Vector2(0, 0);
+    }
+  }
+
+  void changeLocation() {
+    position.x = random.nextDouble() * (gameRef.size.x - size.x);
+    position.y = random.nextDouble() * (gameRef.size.y - size.y);
+
+    timeSinceLastMove = 0.0;
   }
 }
