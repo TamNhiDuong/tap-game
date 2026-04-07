@@ -18,5 +18,6 @@ samples, guidance on mobile development, and a full API reference.
 
 ## Run project
 ```sh
+flutter pub get
 flutter run -d chrome
 ``

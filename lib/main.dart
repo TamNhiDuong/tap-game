@@ -1,21 +1,28 @@
-import 'package:flame/components.dart';
-import 'package:flame/events.dart';
-import 'package:flame/game.dart';
-import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+import 'dart:async' as dart_async;
 import 'dart:math';
 
+import 'package:flame/components.dart';
+import 'package:flame/events.dart';
+import 'package:flame/input.dart';
+import 'package:flame_forge2d/flame_forge2d.dart';
+import 'package:flame/game.dart' show GameWidget;
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+
+// APP
 void main() {
-  runApp(GameApp());
+  runApp(const GameApp());
 }
 
 class GameApp extends StatelessWidget {
+  const GameApp({super.key});
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(home: StartScreen());
   }
 }
 
+// SCREENS
 class StartScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -23,12 +30,11 @@ class StartScreen extends StatelessWidget {
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text("Welcome to the game!", style: TextStyle(fontSize: 48)),
-            Padding(padding: EdgeInsets.all(16)),
+            const Text('Welcome to the game!', style: TextStyle(fontSize: 48)),
+            const Padding(padding: EdgeInsets.all(16)),
             ElevatedButton(
-              child: Text("Start", style: TextStyle(fontSize: 24)),
+              child: const Text('Start', style: TextStyle(fontSize: 24)),
               onPressed: () => Get.to(() => GameScreen()),
             ),
           ],
@@ -47,22 +53,24 @@ class GameScreen extends StatelessWidget {
 
 class ResultScreen extends StatelessWidget {
   final int score;
-  const ResultScreen({required this.score});
+  const ResultScreen({required this.score, super.key});
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Text(
-              "Great work, you got $score points!",
-              style: TextStyle(fontSize: 48),
+              'Great work, you got $score points!',
+              style: const TextStyle(fontSize: 48),
             ),
-            Padding(padding: EdgeInsets.all(16)),
+            const Padding(padding: EdgeInsets.all(16)),
             ElevatedButton(
-              child: Text("Back to start", style: TextStyle(fontSize: 24)),
+              child: const Text(
+                'Back to start',
+                style: TextStyle(fontSize: 24),
+              ),
               onPressed: () => Get.to(() => StartScreen()),
             ),
           ],
@@ -72,164 +80,214 @@ class ResultScreen extends StatelessWidget {
   }
 }
 
-class TapGame extends FlameGame {
-  final gravity = Vector2(0, 100);
-
+// THE GAME
+class TapGame extends Forge2DGame with TapDetector {
   var gameFinished = false;
-  var timeLeft = 30.0;
   var score = 0;
-  var tapNumber = 0;
 
-  TapGame() {
-    add(TapBox());
-    add(TapCircle());
-    add(TapPolygon());
-  }
-
-  @override
-  void update(double dt) {
-    super.update(dt);
-    timeLeft -= dt;
-
-    if (timeLeft <= 0 && !gameFinished) {
-      gameFinished = true;
-      Get.offAll(() => ResultScreen(score: score));
-    }
-  }
-
-  incrementScore() {
-    score++;
-    tapNumber++;
-  }
-}
-
-class TapBox extends RectangleComponent with HasGameRef<TapGame>, TapCallbacks {
-  final random = Random();
-  var timeSinceLastMove = 0.0;
-  var velocity = Vector2(0, 0);
-
-  TapBox()
+  TapGame()
     : super(
-        position: Vector2(100, 300),
-        size: Vector2(50, 50),
-        anchor: Anchor.center,
+        camera: CameraComponent.withFixedResolution(width: 800, height: 600),
       );
 
   @override
-  void onTapDown(TapDownEvent event) {
-    gameRef.incrementScore();
-    changeLocation();
+  Future<void> onLoad() async {
+    await super.onLoad();
+    world.add(TapBox());
+    world.add(TapCircle());
+    world.add(TapPolygon());
+    world.add(GameBounds());
+    world.add(MovingObstacle());
+
+    dart_async.Timer.periodic(const Duration(milliseconds: 2500), (timer) {
+      if (gameFinished) {
+        timer.cancel();
+        return;
+      }
+      world.add(MovingObstacle());
+      _removeOutOfBoundsObstacles();
+    });
   }
 
-  @override
-  void update(double dt) {
-    super.update(dt);
-    transform.angle += dt;
+  void incrementScore() => score++;
 
-    velocity += gameRef.gravity * dt;
-    position += velocity * dt;
-
-    timeSinceLastMove += dt;
-    if (timeSinceLastMove > 1.0) {
-      changeLocation();
-    }
-
-    if (position.y > gameRef.size.y - size.y) {
-      position.y = gameRef.size.y - size.y;
-      velocity = Vector2(0, 0);
-    }
+  void finishGame() {
+    if (gameFinished) return;
+    gameFinished = true;
+    Get.offAll(() => ResultScreen(score: score));
   }
 
-  void changeLocation() {
-    position.x = random.nextDouble() * (gameRef.size.x - size.x);
-    position.y = random.nextDouble() * (gameRef.size.y - size.y);
-
-    timeSinceLastMove = 0.0;
-  }
-}
-
-class TapCircle extends CircleComponent with HasGameRef<TapGame>, TapCallbacks {
-  final random = Random();
-  var timeSinceLastMove = 0.0;
-  var velocity = Vector2(0, 0);
-
-  TapCircle() : super(position: Vector2(100, 400), radius: 50);
-
-  @override
-  void onTapDown(TapDownEvent event) {
-    gameRef.incrementScore();
-    changeLocation();
-  }
-
-  @override
-  void update(double dt) {
-    super.update(dt);
-    transform.angle += dt;
-
-    velocity += gameRef.gravity * dt;
-    position += velocity * dt;
-
-    timeSinceLastMove += dt;
-    if (timeSinceLastMove > 1.0) {
-      changeLocation();
-    }
-
-    if (position.y > gameRef.size.y - size.y) {
-      position.y = gameRef.size.y - size.y;
-      velocity = Vector2(0, 0);
-    }
-  }
-
-  void changeLocation() {
-    position.x = random.nextDouble() * (gameRef.size.x - size.x);
-    position.y = random.nextDouble() * (gameRef.size.y - size.y);
-
-    timeSinceLastMove = 0.0;
+  void _removeOutOfBoundsObstacles() {
+    world.children.whereType<MovingObstacle>().forEach((o) {
+      if (o.body.position.x < camera.visibleWorldRect.left) {
+        world.remove(o);
+      }
+    });
   }
 }
 
-class TapPolygon extends PolygonComponent
-    with TapCallbacks, HasGameRef<TapGame> {
-  final random = Random();
-  var timeSinceLastMove = 0.0;
-  var velocity = Vector2(0, 0);
+class GameBounds extends BodyComponent {
+  @override
+  Body createBody() {
+    final bodyDef = BodyDef(
+      type: BodyType.static,
+      position: Vector2.zero(),
+      userData: this,
+    );
 
-  TapPolygon()
-    : super(
-        [Vector2(0, 0), Vector2(100, 0), Vector2(50, 100)],
-        position: Vector2(100, 200),
-        paint: Paint()..color = Colors.orange,
+    final boundsBody = world.createBody(bodyDef);
+    final r = game.camera.visibleWorldRect;
+
+    // Four corners, inset by 1 unit top/bottom so the walls are visible
+    final corners = [
+      Vector2(r.left, r.top + 1),
+      Vector2(r.right, r.top + 1),
+      Vector2(r.right, r.bottom - 1),
+      Vector2(r.left, r.bottom - 1),
+    ];
+
+    for (int i = 0; i < corners.length; i++) {
+      boundsBody.createFixture(
+        FixtureDef(
+          EdgeShape()..set(corners[i], corners[(i + 1) % corners.length]),
+        ),
       );
+    }
+
+    return boundsBody;
+  }
+}
+
+class MovingObstacle extends BodyComponent {
+  final _rng = Random();
+  static const _obstacleHeight = 25.0;
+  static const _edgeBuffer = 2.0;
+
+  @override
+  Body createBody() {
+    final halfH = _obstacleHeight / 2;
+    final r = game.camera.visibleWorldRect;
+
+    final posY = _rng.nextBool()
+        ? r.top + _edgeBuffer + halfH
+        : r.bottom - _edgeBuffer - halfH;
+
+    final bodyDef = BodyDef(
+      position: Vector2(r.right + _edgeBuffer, posY),
+      gravityOverride: Vector2.zero(),
+      linearVelocity: Vector2(-10, 0),
+      type: BodyType.dynamic,
+      userData: this,
+    );
+
+    final shape = PolygonShape()..setAsBoxXY(2, halfH);
+    return world.createBody(bodyDef)..createFixture(FixtureDef(shape));
+  }
+}
+
+// GAME OBJECTS
+class TapBox extends BodyComponent<TapGame>
+    with TapCallbacks, ContactCallbacks {
+  @override
+  Body createBody() {
+    final bodyDef = BodyDef(
+      position: Vector2.zero(),
+      type: BodyType.dynamic,
+      angularVelocity: 1.5,
+      userData: this,
+    );
+
+    final shape = PolygonShape()..setAsBoxXY(2.5, 2.5);
+    final fixtureDef = FixtureDef(shape)..restitution = 0.25;
+
+    return world.createBody(bodyDef)..createFixture(fixtureDef);
+  }
 
   @override
   void onTapDown(TapDownEvent event) {
-    gameRef.incrementScore();
-    changeLocation();
+    game.incrementScore();
+    body.setAwake(true);
+    body.applyLinearImpulse(Vector2(0, -500));
   }
 
   @override
-  void update(double dt) {
-    super.update(dt);
-    transform.angle += dt;
-
-    velocity += gameRef.gravity * dt;
-    position += velocity * dt;
-
-    timeSinceLastMove += dt;
-    if (timeSinceLastMove > 1.0) {
-      changeLocation();
-    }
-
-    if (position.y > gameRef.size.y - size.y) {
-      position.y = gameRef.size.y - size.y;
-      velocity = Vector2(0, 0);
+  void beginContact(Object other, Contact contact) {
+    if (other is MovingObstacle) {
+      game.finishGame();
     }
   }
+}
 
-  void changeLocation() {
-    position.x = random.nextDouble() * (gameRef.size.x - size.x);
-    position.y = random.nextDouble() * (gameRef.size.y - size.y);
+class TapCircle extends BodyComponent<TapGame>
+    with TapCallbacks, ContactCallbacks {
+  @override
+  Body createBody() {
+    final bodyDef = BodyDef(
+      position: Vector2(5, 10),
+      type: BodyType.dynamic,
+      angularVelocity: 1.0,
+      userData: this,
+    );
 
-    timeSinceLastMove = 0.0;
+    final shape = CircleShape()..radius = 2.5;
+
+    final fixtureDef = FixtureDef(shape)
+      ..restitution =
+          0.8 // more bouncy than box
+      ..density = 1.0;
+
+    return world.createBody(bodyDef)..createFixture(fixtureDef);
+  }
+
+  @override
+  void onTapDown(TapDownEvent event) {
+    game.incrementScore();
+
+    body.setAwake(true);
+    body.applyLinearImpulse(Vector2(0, -400));
+  }
+
+  @override
+  void beginContact(Object other, Contact contact) {
+    if (other is MovingObstacle) {
+      game.finishGame();
+    }
+  }
+}
+
+class TapPolygon extends BodyComponent<TapGame>
+    with TapCallbacks, ContactCallbacks {
+  @override
+  Body createBody() {
+    final bodyDef = BodyDef(
+      position: Vector2(10, 10),
+      type: BodyType.dynamic,
+      angularVelocity: 1.2,
+      userData: this,
+    );
+
+    final shape = PolygonShape()
+      ..set([Vector2(0, 0), Vector2(3, 0), Vector2(1.5, 3)]);
+
+    final fixtureDef = FixtureDef(shape)
+      ..restitution = 0.4
+      ..density = 1.0;
+
+    return world.createBody(bodyDef)..createFixture(fixtureDef);
+  }
+
+  @override
+  void onTapDown(TapDownEvent event) {
+    game.incrementScore();
+
+    body.setAwake(true);
+    body.applyLinearImpulse(Vector2(0, -450));
+  }
+
+  @override
+  void beginContact(Object other, Contact contact) {
+    if (other is MovingObstacle) {
+      game.finishGame();
+    }
   }
 }
